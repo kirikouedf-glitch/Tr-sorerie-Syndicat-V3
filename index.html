@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#a4001d">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Trésorerie Syndicat V3 Test</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f5f6f8;color:#202124;padding-bottom:72px}
+header{position:sticky;top:0;z-index:5;background:white;border-bottom:1px solid #ddd;padding:14px 16px}
+h1{font-size:20px;margin:0}.sub{font-size:12px;color:#666}
+main{max-width:900px;margin:auto;padding:12px}.page{display:none}.page.active{display:block}
+.card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px #0001}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.kpi{border:1px solid #e1e1e1;border-radius:12px;padding:12px}.kpi span{display:block;font-size:12px;color:#666}.kpi b{font-size:18px}
+label{display:block;font-size:13px;font-weight:700;margin:10px 0 4px}input,select,textarea{width:100%;padding:10px;border:1px solid #bbb;border-radius:9px;font:inherit;background:#fff}
+button{padding:10px 12px;border:1px solid #aaa;border-radius:9px;background:#fff;font-weight:650}.primary{background:#a4001d;color:white;border-color:#a4001d}.success{background:#1f7a36;color:white;border-color:#1f7a36}
+.muted{color:#666;font-size:13px}.good{color:#19703a;font-weight:700}.warn{color:#a66a00;font-weight:700}.bad{color:#a00000;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid #ddd;padding:8px 5px;text-align:left}.n{text-align:right;white-space:nowrap}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:#fff;border-top:1px solid #ddd}
+nav button{flex:1;border:0;border-radius:0;font-size:11px;padding:11px 3px}nav button.active{color:#a4001d;font-weight:800}
+.preview{max-width:100%;max-height:280px;border-radius:10px;border:1px solid #ddd;margin-top:8px}
+.badge{display:inline-block;padding:5px 8px;border-radius:999px;background:#eee;font-size:12px;margin-right:5px}
+.match{border:2px solid #ddd;border-radius:12px;padding:12px;margin-top:10px}.match.best{border-color:#1f7a36}
+hr{border:0;border-top:1px solid #ddd;margin:15px 0}
+@media(max-width:650px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><h1>Trésorerie Syndicat V3 <span class="sub">TEST</span></h1><div class="sub">Prototype scanner + rapprochement assisté</div></header>
+<main>
+
+<section id="home" class="page active">
+<div class="grid">
+<div class="kpi"><span>Factures scannées</span><b id="kDocs">0</b></div>
+<div class="kpi"><span>Écritures rapprochées</span><b id="kReco">0</b></div>
+</div>
+<div class="card"><h2>Parcours de test</h2>
+<p>1. Scanner une facture ou un ticket.<br>2. Vérifier les informations lues automatiquement.<br>3. Créer l’écriture.<br>4. Importer un relevé bancaire CSV.<br>5. Lancer la recherche de correspondance.<br>6. Valider le rapprochement.</p>
+<p class="muted">La V2 reste indépendante. Ce prototype utilise un stockage local séparé.</p>
+</div>
+</section>
+
+<section id="scan" class="page">
+<div class="card">
+<h2>Scanner un justificatif</h2>
+<label>Photo / image</label>
+<input id="scanFile" type="file" accept="image/*" capture="environment" onchange="previewScan(event)">
+<img id="scanPreview" class="preview" style="display:none">
+<button class="primary" onclick="runOCR()" style="margin-top:10px">Lire la facture</button>
+<div id="ocrStatus" class="muted" style="margin-top:8px"></div>
+<hr>
+<div class="grid">
+<div><label>Date</label><input id="docDate" type="date"></div>
+<div><label>Montant TTC (€)</label><input id="docAmount" type="number" step="0.01"></div>
+</div>
+<label>Fournisseur</label><input id="docVendor">
+<label>N° facture / référence</label><input id="docRef">
+<label>Rubrique proposée</label>
+<select id="docVent">
+<option>Fournitures et administration</option>
+<option>Déplacements et missions</option>
+<option>Communication</option>
+<option>Locaux</option>
+<option>Formation</option>
+<option>Actions syndicales</option>
+<option>Frais bancaires</option>
+<option>Autres dépenses</option>
+</select>
+<label>Texte OCR brut</label><textarea id="ocrText" rows="7"></textarea>
+<button class="success" onclick="createFromDoc()" style="margin-top:10px">Créer l’écriture</button>
+</div>
+</section>
+
+<section id="bank" class="page">
+<div class="card">
+<h2>Importer un relevé bancaire</h2>
+<p class="muted">Pour le test, utiliser un CSV avec idéalement des colonnes date, libellé et montant. Le séparateur ; ou , est accepté.</p>
+<input id="csvFile" type="file" accept=".csv,text/csv">
+<button class="primary" onclick="importCSV()" style="margin-top:10px">Importer</button>
+<div id="csvMsg" class="muted"></div>
+</div>
+<div class="card"><h2>Lignes importées</h2><div style="overflow:auto"><table><thead><tr><th>Date</th><th>Libellé</th><th class="n">Montant</th><th>Statut</th></tr></thead><tbody id="bankRows"></tbody></table></div></div>
+</section>
+
+<section id="match" class="page">
+<div class="card">
+<h2>Rapprochement assisté</h2>
+<label>Écriture à rapprocher</label><select id="matchOp" onchange="showMatches()"></select>
+<div id="matches"></div>
+</div>
+</section>
+
+<section id="journal" class="page">
+<div class="card"><h2>Journal</h2>
+<div style="overflow:auto"><table><thead><tr><th>Pièce</th><th>Date</th><th>Libellé</th><th>Rubrique</th><th class="n">Montant</th><th>Statut</th></tr></thead><tbody id="journalRows"></tbody></table></div>
+</div>
+</section>
+
+<section id="settings" class="page">
+<div class="card">
+<h2>Sauvegarde du test</h2>
+<button onclick="backup()">Télécharger la sauvegarde</button>
+<label>Restaurer</label><input type="file" accept=".json" onchange="restore(event)">
+<hr>
+<button onclick="resetTest()" class="bad">Effacer uniquement les données V3 Test</button>
+</div>
+</section>
+
+</main>
+<nav>
+<button id="nav-home" class="active" onclick="show('home')">Accueil</button>
+<button id="nav-scan" onclick="show('scan')">Scanner</button>
+<button id="nav-bank" onclick="show('bank')">Banque</button>
+<button id="nav-match" onclick="show('match')">Rapprocher</button>
+<button id="nav-journal" onclick="show('journal')">Journal</button>
+<button id="nav-settings" onclick="show('settings')">Plus</button>
+</nav>
+
+<script>
+const KEY="tresorerie_v3_test";
+let db=load();
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||{docs:[],ops:[],bank:[]}}catch(e){return{docs:[],ops:[],bank:[]}}}
+function save(){localStorage.setItem(KEY,JSON.stringify(db))}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+function euro(v){return new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR"}).format(Number(v||0))}
+function uid(p){return p+"_"+Date.now()+"_"+Math.random().toString(36).slice(2,6)}
+function show(id){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));document.getElementById("nav-"+id).classList.add("active");render()}
+function nextPiece(){let y=new Date().getFullYear().toString().slice(-2),n=db.ops.filter(o=>o.piece?.startsWith(y+" D ")).length+1;return `${y} D ${String(n).padStart(3,"0")}`}
+function file64(f){return new Promise((res,rej)=>{let r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)})}
+async function previewScan(e){let f=e.target.files[0];if(!f)return;scanPreview.src=await file64(f);scanPreview.style.display="block"}
+function normalizeText(s){return s.replace(/\s+/g," ").trim()}
+function parseDate(text){
+ let m=text.match(/\b([0-3]?\d)[\/\-.]([01]?\d)[\/\-.](20\d{2}|\d{2})\b/);
+ if(!m)return "";
+ let y=m[3].length===2?"20"+m[3]:m[3];return `${y}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+}
+function parseAmount(text){
+ let candidates=[...text.matchAll(/(?:TTC|TOTAL(?:\s+A\s+PAYER)?|NET\s+A\s+PAYER|MONTANT)[^\d]{0,20}(\d{1,5}[.,]\d{2})/gi)].map(m=>parseFloat(m[1].replace(",",".")));
+ if(!candidates.length)candidates=[...text.matchAll(/\b(\d{1,5}[.,]\d{2})\s*€?/g)].map(m=>parseFloat(m[1].replace(",",".")));
+ return candidates.length?Math.max(...candidates):"";
+}
+function parseRef(text){
+ let m=text.match(/(?:facture|invoice|ticket|reçu|recu|n[°o])\s*[:#\-]?\s*([A-Z0-9\-\/]{3,30})/i);return m?m[1]:"";
+}
+function guessVendor(text){
+ let lines=text.split(/\r?\n/).map(x=>x.trim()).filter(x=>x.length>2);
+ return lines.slice(0,5).find(x=>/[A-Za-zÀ-ÿ]{3}/.test(x)&&!/facture|ticket|date|total|tva|siret/i.test(x))||"";
+}
+function guessVent(vendor,text){
+ let s=(vendor+" "+text).toLowerCase();
+ if(/bureau|papeter|office|imprim|cartouche/.test(s))return "Fournitures et administration";
+ if(/sncf|train|autoroute|péage|peage|hotel|restaurant|carburant/.test(s))return "Déplacements et missions";
+ if(/imprimerie|affiche|communication|orange|free|sfr/.test(s))return "Communication";
+ if(/loyer|électricité|electricite|edf|eau|assurance/.test(s))return "Locaux";
+ if(/formation|stage|livre|documentation/.test(s))return "Formation";
+ if(/banque|commission|frais bancaire/.test(s))return "Frais bancaires";
+ return "Autres dépenses";
+}
+async function runOCR(){
+ let f=scanFile.files[0];if(!f){alert("Prends ou choisis une photo.");return}
+ if(typeof Tesseract==="undefined"){alert("OCR indisponible. Vérifie la connexion Internet puis recharge l'application.");return}
+ ocrStatus.textContent="Lecture OCR en cours…";
+ try{
+   let result=await Tesseract.recognize(f,"fra",{logger:m=>{if(m.status==="recognizing text")ocrStatus.textContent=`Lecture OCR : ${Math.round((m.progress||0)*100)} %`}});
+   let text=result.data.text||"";ocrText.value=text;
+   docDate.value=parseDate(text);
+   docAmount.value=parseAmount(text);
+   docRef.value=parseRef(text);
+   docVendor.value=guessVendor(text);
+   docVent.value=guessVent(docVendor.value,text);
+   ocrStatus.innerHTML='<span class="good">Lecture terminée. Vérifie les champs avant validation.</span>';
+ }catch(e){ocrStatus.innerHTML='<span class="bad">Échec OCR sur cette image.</span>'}
+}
+async function createFromDoc(){
+ let amount=parseFloat(docAmount.value),date=docDate.value,vendor=docVendor.value.trim();
+ if(!date||!vendor||!Number.isFinite(amount)||amount<=0){alert("Vérifie au minimum la date, le fournisseur et le montant.");return}
+ let f=scanFile.files[0],att=f?await file64(f):null,docId=uid("doc");
+ db.docs.push({id:docId,date,amount,vendor,ref:docRef.value.trim(),vent:docVent.value,ocr:ocrText.value,attachment:att});
+ db.ops.push({id:uid("op"),piece:nextPiece(),date,amount,label:vendor,vent:docVent.value,ref:docRef.value.trim(),docId,reconciled:false,bankId:null});
+ save();alert("Écriture créée.");show("match");
+}
+function parseCSVLine(line,sep){let out=[],cur="",q=false;for(let i=0;i<line.length;i++){let c=line[i];if(c=='"'){q=!q;continue}if(c===sep&&!q){out.push(cur);cur=""}else cur+=c}out.push(cur);return out}
+function findColumn(headers,patterns){let low=headers.map(h=>h.toLowerCase());for(let p of patterns){let i=low.findIndex(h=>p.test(h));if(i>=0)return i}return -1}
+async function importCSV(){
+ let f=csvFile.files[0];if(!f){alert("Choisis un fichier CSV.");return}
+ let txt=await f.text(),lines=txt.split(/\r?\n/).filter(x=>x.trim()),sep=((lines[0].match(/;/g)||[]).length>=(lines[0].match(/,/g)||[]).length)?";":",";
+ let headers=parseCSVLine(lines.shift(),sep);
+ let di=findColumn(headers,[/date/]),li=findColumn(headers,[/libell/,/description/,/opération/,/operation/]),mi=findColumn(headers,[/montant/,/amount/]),debi=findColumn(headers,[/débit/,/debit/]),credi=findColumn(headers,[/crédit/,/credit/]);
+ if(di<0||li<0||(mi<0&&debi<0&&credi<0)){alert("Colonnes non reconnues. Il faut au minimum date, libellé et montant (ou débit/crédit).");return}
+ let added=0;
+ for(let line of lines){
+  let c=parseCSVLine(line,sep),amt=0;
+  if(mi>=0)amt=parseFloat(String(c[mi]||"").replace(/\s/g,"").replace(",",".").replace(/[^\d.-]/g,""))||0;
+  else{let cr=parseFloat(String(c[credi]||"").replace(/\s/g,"").replace(",",".").replace(/[^\d.-]/g,""))||0;let dbt=parseFloat(String(c[debi]||"").replace(/\s/g,"").replace(",",".").replace(/[^\d.-]/g,""))||0;amt=cr-dbt}
+  let rawdate=(c[di]||"").trim(),d=parseDate(rawdate)||rawdate;
+  db.bank.push({id:uid("b"),date:d,label:(c[li]||"").trim(),amount:amt,reconciled:false,opId:null});added++;
+ }
+ save();csvMsg.innerHTML=`<span class="good">${added} ligne(s) importée(s).</span>`;render()
+}
+function dateDiff(a,b){let da=new Date(a),dbb=new Date(b);if(isNaN(da)||isNaN(dbb))return 99;return Math.abs((da-dbb)/86400000)}
+function similarity(a,b){a=a.toLowerCase();b=b.toLowerCase();let aw=a.split(/\W+/).filter(x=>x.length>2),hits=aw.filter(x=>b.includes(x)).length;return aw.length?hits/aw.length:0}
+function score(op,b){
+ let s=0;
+ if(Math.abs(Math.abs(b.amount)-op.amount)<0.01)s+=70;
+ let dd=dateDiff(op.date,b.date);if(dd===0)s+=20;else if(dd<=2)s+=15;else if(dd<=5)s+=8;
+ s+=Math.round(similarity(op.label,b.label)*10);
+ return Math.min(100,s);
+}
+function showMatches(){
+ let op=db.ops.find(o=>o.id===matchOp.value);if(!op){matches.innerHTML="";return}
+ let candidates=db.bank.filter(b=>!b.reconciled&&b.amount<0).map(b=>({b,s:score(op,b)})).sort((x,y)=>y.s-x.s).slice(0,5);
+ matches.innerHTML=candidates.length?candidates.map((x,i)=>`<div class="match ${i===0&&x.s>=80?"best":""}"><div><span class="badge">${x.s}%</span><b>${esc(x.b.date)}</b> — ${esc(x.b.label)}</div><div class="n"><b>${euro(x.b.amount)}</b></div><button class="${x.s>=80?"success":"primary"}" onclick="reconcile('${op.id}','${x.b.id}')">Valider ce rapprochement</button></div>`).join(""):'<p class="muted">Aucune ligne bancaire disponible.</p>'
+}
+function reconcile(opId,bid){
+ let op=db.ops.find(o=>o.id===opId),b=db.bank.find(x=>x.id===bid);if(!op||!b)return;
+ if(Math.abs(Math.abs(b.amount)-op.amount)>0.01&&!confirm("Le montant n'est pas identique. Confirmer quand même ?"))return;
+ op.reconciled=true;op.bankId=bid;b.reconciled=true;b.opId=opId;save();render();alert("Rapprochement validé. L’écriture est maintenant verrouillée dans ce prototype.")
+}
+function render(){
+ kDocs.textContent=db.docs.length;kReco.textContent=db.ops.filter(o=>o.reconciled).length;
+ bankRows.innerHTML=db.bank.map(b=>`<tr><td>${esc(b.date)}</td><td>${esc(b.label)}</td><td class="n">${euro(b.amount)}</td><td>${b.reconciled?"🔒 Rapproché":"À pointer"}</td></tr>`).join("");
+ matchOp.innerHTML=db.ops.filter(o=>!o.reconciled).map(o=>`<option value="${o.id}">${esc(o.piece)} — ${esc(o.label)} — ${euro(o.amount)}</option>`).join("");
+ journalRows.innerHTML=db.ops.map(o=>`<tr><td>${esc(o.piece)}</td><td>${esc(o.date)}</td><td>${esc(o.label)}</td><td>${esc(o.vent)}</td><td class="n">${euro(o.amount)}</td><td>${o.reconciled?"🔒 Rapproché":"Ouvert"}</td></tr>`).join("");
+ showMatches()
+}
+function dl(name,txt){let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));a.download=name;a.click()}
+function backup(){dl("Sauvegarde_V3_TEST.json",JSON.stringify(db,null,2))}
+function restore(e){let f=e.target.files[0],r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);save();render();alert("Sauvegarde restaurée.")}catch(_){alert("Fichier invalide.")}};r.readAsText(f)}
+function resetTest(){if(confirm("Effacer uniquement les données du prototype V3 Test ?")){db={docs:[],ops:[],bank:[]};save();render()}}
+render();if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body></html>

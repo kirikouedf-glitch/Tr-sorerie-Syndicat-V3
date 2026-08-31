@@ -1,0 +1,16 @@
+{
+  "name": "Trésorerie Syndicat V3 Test",
+  "short_name": "Tréso V3 Test",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#a4001d",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
