@@ -19,7 +19,7 @@ button{padding:10px 12px;border:1px solid #aaa;border-radius:9px;background:#fff
 .muted{color:#666;font-size:13px}.good{color:#19703a;font-weight:700}.warn{color:#a66a00;font-weight:700}.bad{color:#a00000;font-weight:700}
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid #ddd;padding:8px 5px;text-align:left}.n{text-align:right;white-space:nowrap}
 nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:#fff;border-top:1px solid #ddd}
-nav button{flex:1;border:0;border-radius:0;font-size:11px;padding:11px 3px}nav button.active{color:#a4001d;font-weight:800}
+nav{overflow-x:auto}nav button{flex:1 0 90px;border:0;border-radius:0;font-size:11px;padding:11px 3px}nav button.active{color:#a4001d;font-weight:800}
 .preview{max-width:100%;max-height:280px;border-radius:10px;border:1px solid #ddd;margin-top:8px}
 .badge{display:inline-block;padding:5px 8px;border-radius:999px;background:#eee;font-size:12px;margin-right:5px}
 .match{border:2px solid #ddd;border-radius:12px;padding:12px;margin-top:10px}.match.best{border-color:#1f7a36}
@@ -98,6 +98,9 @@ hr{border:0;border-top:1px solid #ddd;margin:15px 0}
 </div>
 </section>
 
+<section id="notes" class="page"><div class="card"><h2>Nouvelle note de frais</h2><label>Demandeur</label><input id="person"><label>Objet</label><input id="purpose"><label>Date</label><input id="nDate" type="date"><label>Nature de la dépense</label><input id="nLabel"><label>Montant TTC (€)</label><input id="nAmount" type="number" step=".01"><label>Justificatif PDF / photo</label><input id="nFile" type="file" accept=".pdf,image/*"><button onclick="addNLine()">Ajouter une dépense</button><div id="nDraft"></div><button class="primary" onclick="saveN()">Enregistrer la note</button></div><div class="card"><h2>Notes enregistrées</h2><div id="nSaved"></div></div></section>
+<section id="accounts" class="page"><div class="card"><h2>Créer un compte</h2><label>Banque</label><input id="aBank"><label>Nom du compte</label><input id="aName"><label>Type</label><select id="aType"><option>Compte courant</option><option>Livret</option><option>Caisse</option></select><label>Solde initial (€)</label><input id="aBalance" type="number" step=".01" value="0"><button class="primary" onclick="addA()">Créer le compte</button></div><div class="card"><h2>Comptes</h2><div id="aList"></div></div></section>
+<section id="bureau" class="page"><div class="card"><h2>Membres du bureau</h2><p class="warn">Démonstration uniquement : l'authentification multi-utilisateur et la synchronisation ne sont pas encore actives.</p><label>Rôle (simulation)</label><select><option>Membre du bureau</option><option>Trésorier</option><option>Secrétaire général</option></select><label>Adresse du trésorier</label><input id="mailTo" type="email" placeholder="tresorier@exemple.fr" oninput="localStorage.setItem('v3mail',this.value)"><p class="muted">L'export .eml prépare un courriel avec les pièces jointes. Il faut l'ouvrir dans une messagerie et cliquer sur Envoyer. Aucun envoi automatique.</p></div></section>
 <section id="settings" class="page">
 <div class="card">
 <h2>Sauvegarde du test</h2>
@@ -115,12 +118,12 @@ hr{border:0;border-top:1px solid #ddd;margin:15px 0}
 <button id="nav-bank" onclick="show('bank')">Banque</button>
 <button id="nav-match" onclick="show('match')">Rapprocher</button>
 <button id="nav-journal" onclick="show('journal')">Journal</button>
-<button id="nav-settings" onclick="show('settings')">Plus</button>
+<button id="nav-notes" onclick="show('notes')">Notes de frais</button><button id="nav-accounts" onclick="show('accounts')">Comptes</button><button id="nav-bureau" onclick="show('bureau')">Bureau</button><button id="nav-settings" onclick="show('settings')">Plus</button>
 </nav>
 
 <script>
 const KEY="tresorerie_v3_test";
-let db=load();
+let db=load();db.notes??=[];db.accounts??=[];let draft=[];
 function load(){try{return JSON.parse(localStorage.getItem(KEY))||{docs:[],ops:[],bank:[]}}catch(e){return{docs:[],ops:[],bank:[]}}}
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
 function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
@@ -218,7 +221,17 @@ function reconcile(opId,bid){
  if(Math.abs(Math.abs(b.amount)-op.amount)>0.01&&!confirm("Le montant n'est pas identique. Confirmer quand même ?"))return;
  op.reconciled=true;op.bankId=bid;b.reconciled=true;b.opId=opId;save();render();alert("Rapprochement validé. L’écriture est maintenant verrouillée dans ce prototype.")
 }
-function render(){
+
+async function addNLine(){let a=Number(nAmount.value),f=nFile.files[0];if(!nDate.value||!nLabel.value.trim()||a<=0){alert("Date, nature et montant requis");return}if(f&&f.size>1500000){alert("Justificatif trop volumineux pour ce prototype (1,5 Mo)");return}draft.push({date:nDate.value,label:nLabel.value,amount:a,filename:f?.name||"",mime:f?.type||"application/octet-stream",data:f?await file64(f):null});nLabel.value="";nAmount.value="";nFile.value="";renderN()}
+function saveN(){if(!person.value.trim()||!purpose.value.trim()||!draft.length){alert("Demandeur, objet et dépense requis");return}db.notes.push({id:uid("note"),person:person.value,purpose:purpose.value,lines:draft,date:new Date().toISOString().slice(0,10)});try{save()}catch(e){db.notes.pop();alert("Espace de stockage insuffisant");return}draft=[];person.value="";purpose.value="";renderN()}
+function totalN(n){return n.lines.reduce((a,l)=>a+Number(l.amount),0)}
+function renderN(){nDraft.innerHTML=draft.map(l=>`<p>${esc(l.label)} : ${euro(l.amount)} ${esc(l.filename)}</p>`).join("")+`<b>Total : ${euro(totalN({lines:draft}))}</b>`;nSaved.innerHTML=db.notes.map(n=>`<div class="match"><b>${esc(n.person)}</b> — ${esc(n.purpose)} — ${euro(totalN(n))}<p><button onclick="printN('${n.id}')">Éditer / PDF</button> <button class="primary" onclick="emailN('${n.id}')">Courriel au trésorier + pièces</button></p></div>`).join("")||"Aucune note"}
+function printN(id){let n=db.notes.find(x=>x.id===id),w=window.open("","_blank");if(!w){alert("Autorise les fenêtres surgissantes");return}let rows=n.lines.map(l=>`<tr><td>${esc(l.date)}</td><td>${esc(l.label)}</td><td>${euro(l.amount)}</td><td>${esc(l.filename)}</td></tr>`).join("");w.document.write(`<html><meta charset="utf-8"><title>Note de frais</title><body style="font:15px Arial;margin:40px"><h1>UL Basse Loire — Note de frais</h1><p>Demandeur : ${esc(n.person)}<br>Objet : ${esc(n.purpose)}<br>Date : ${esc(n.date)}</p><table border="1" cellspacing="0" cellpadding="10"><tr><th>Date</th><th>Dépense</th><th>Montant</th><th>Justificatif</th></tr>${rows}</table><h2>Total : ${euro(totalN(n))}</h2><p>Signature demandeur : __________________</p><p>Visa trésorier : __________________</p><button onclick="print()">Imprimer / Enregistrer en PDF</button></body></html>`);w.document.close()}
+function emailN(id){let n=db.notes.find(x=>x.id===id),to=localStorage.getItem("v3mail")||"";if(!to){alert("Renseigne l'adresse du trésorier dans Bureau");show("bureau");return}let boundary="NF"+Date.now(),body=`Bonjour,\r\nNouvelle note de frais à contrôler.\r\nDemandeur : ${n.person}\r\nObjet : ${n.purpose}\r\nTotal : ${euro(totalN(n))}\r\n\r\n`+n.lines.map(l=>`${l.date} ${l.label} ${euro(l.amount)}`).join("\r\n");let b64=t=>btoa(unescape(encodeURIComponent(t)));let eml=`To: ${to}\r\nSubject: Nouvelle note de frais\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n--${boundary}\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${b64(body)}\r\n`;for(let l of n.lines){if(!l.data)continue;let name=l.filename.replace(/[^a-zA-Z0-9._-]/g,"_");eml+=`--${boundary}\r\nContent-Type: ${l.mime}; name="${name}"\r\nContent-Disposition: attachment; filename="${name}"\r\nContent-Transfer-Encoding: base64\r\n\r\n${l.data.split(",")[1].match(/.{1,76}/g).join("\r\n")}\r\n`}eml+=`--${boundary}--\r\n`;let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([eml],{type:"message/rfc822"}));a.download="Note_de_frais.eml";a.click();alert("Courriel .eml téléchargé. Ouvre-le, vérifie les pièces et clique sur Envoyer.")}
+function addA(){if(!aName.value.trim())return alert("Nom du compte requis");db.accounts.push({bank:aBank.value,name:aName.value,type:aType.value,balance:Number(aBalance.value)||0});save();aName.value="";renderA()}
+function renderA(){aList.innerHTML=db.accounts.map(a=>`<p><b>${esc(a.name)}</b> — ${esc(a.bank)} — ${esc(a.type)} — ${euro(a.balance)}</p>`).join("")||"Aucun compte"}
+function render(){renderN();renderA();
+
  kDocs.textContent=db.docs.length;kReco.textContent=db.ops.filter(o=>o.reconciled).length;
  bankRows.innerHTML=db.bank.map(b=>`<tr><td>${esc(b.date)}</td><td>${esc(b.label)}</td><td class="n">${euro(b.amount)}</td><td>${b.reconciled?"🔒 Rapproché":"À pointer"}</td></tr>`).join("");
  matchOp.innerHTML=db.ops.filter(o=>!o.reconciled).map(o=>`<option value="${o.id}">${esc(o.piece)} — ${esc(o.label)} — ${euro(o.amount)}</option>`).join("");
@@ -227,8 +240,8 @@ function render(){
 }
 function dl(name,txt){let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));a.download=name;a.click()}
 function backup(){dl("Sauvegarde_V3_TEST.json",JSON.stringify(db,null,2))}
-function restore(e){let f=e.target.files[0],r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);save();render();alert("Sauvegarde restaurée.")}catch(_){alert("Fichier invalide.")}};r.readAsText(f)}
-function resetTest(){if(confirm("Effacer uniquement les données du prototype V3 Test ?")){db={docs:[],ops:[],bank:[]};save();render()}}
+function restore(e){let f=e.target.files[0],r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);db.notes??=[];db.accounts??=[];save();render();alert("Sauvegarde restaurée.")}catch(_){alert("Fichier invalide.")}};r.readAsText(f)}
+function resetTest(){if(confirm("Effacer uniquement les données du prototype V3 Test ?")){db={docs:[],ops:[],bank:[],notes:[],accounts:[]};save();render()}}
 render();if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body></html>
