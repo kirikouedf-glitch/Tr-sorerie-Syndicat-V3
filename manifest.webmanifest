@@ -1,15 +1,21 @@
 {
-  "name": "Trésorerie Syndicat V3 Test",
-  "short_name": "Tréso V3 Test",
-  "start_url": "./",
+  "name": "Trésorerie Syndicat V4 Pilote",
+  "short_name": "Tréso V4",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#a4001d",
   "icons": [
     {
-      "src": "icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

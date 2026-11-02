@@ -28,7 +28,7 @@ hr{border:0;border-top:1px solid #ddd;margin:15px 0}
 </style>
 </head>
 <body>
-<header><h1>Trésorerie Syndicat V3 <span class="sub">TEST</span></h1><div class="sub">Prototype scanner + rapprochement assisté</div></header>
+<header><h1>Trésorerie Syndicat V3 <span class="sub">TEST</span></h1><div class="sub">UL Basse Loire · notes de frais · scans · banques</div></header>
 <main>
 
 <section id="home" class="page active">
@@ -73,7 +73,7 @@ hr{border:0;border-top:1px solid #ddd;margin:15px 0}
 </div>
 </section>
 
-<section id="bank" class="page">
+<section id="mailScan" class="page"><div class="card"><h2>Notifier le trésorier d'un scan</h2><p>Choisis une facture déjà scannée et enregistrée.</p><select id="scanChoice"></select><button class="primary" onclick="sendScanMail()">Préparer le mail avec le scan joint</button></div></section><section id="bank" class="page">
 <div class="card">
 <h2>Importer un relevé bancaire</h2>
 <p class="muted">Pour le test, utiliser un CSV avec idéalement des colonnes date, libellé et montant. Le séparateur ; ou , est accepté.</p>
@@ -98,9 +98,11 @@ hr{border:0;border-top:1px solid #ddd;margin:15px 0}
 </div>
 </section>
 
-<section id="notes" class="page"><div class="card"><h2>Nouvelle note de frais</h2><label>Demandeur</label><input id="person"><label>Objet</label><input id="purpose"><label>Date</label><input id="nDate" type="date"><label>Nature de la dépense</label><input id="nLabel"><label>Montant TTC (€)</label><input id="nAmount" type="number" step=".01"><label>Justificatif PDF / photo</label><input id="nFile" type="file" accept=".pdf,image/*"><button onclick="addNLine()">Ajouter une dépense</button><div id="nDraft"></div><button class="primary" onclick="saveN()">Enregistrer la note</button></div><div class="card"><h2>Notes enregistrées</h2><div id="nSaved"></div></div></section>
+<section id="notes" class="page"><div class="card"><h2>Nouvelle note de frais</h2><label>Demandeur</label><input id="person"><label>Objet</label><input id="purpose"><label>Date</label><input id="nDate" type="date"><label>Nature de la dépense</label><input id="nLabel"><label>Montant TTC (€)</label><input id="nAmount" type="number" step=".01"><label>Justificatif PDF / photo</label><input id="nFile" type="file" accept=".pdf,image/*" capture="environment"><button onclick="readNoteReceipt()" class="primary" style="margin-top:8px">Lire automatiquement le ticket / la facture</button><div id="noteOcrStatus" class="muted" aria-live="polite"></div><label>Fournisseur (facultatif)</label><input id="nVendor" placeholder="Détecté automatiquement ou à saisir"><button onclick="addNLine()">Ajouter une dépense</button><div id="nDraft"></div><button class="primary" onclick="saveN()">Enregistrer la note</button></div><div class="card"><h2>Notes enregistrées</h2><div id="nSaved"></div></div></section>
 <section id="accounts" class="page"><div class="card"><h2>Créer un compte</h2><label>Banque</label><input id="aBank"><label>Nom du compte</label><input id="aName"><label>Type</label><select id="aType"><option>Compte courant</option><option>Livret</option><option>Caisse</option></select><label>Solde initial (€)</label><input id="aBalance" type="number" step=".01" value="0"><button class="primary" onclick="addA()">Créer le compte</button></div><div class="card"><h2>Comptes</h2><div id="aList"></div></div></section>
 <section id="bureau" class="page"><div class="card"><h2>Membres du bureau</h2><p class="warn">Démonstration uniquement : l'authentification multi-utilisateur et la synchronisation ne sont pas encore actives.</p><label>Rôle (simulation)</label><select><option>Membre du bureau</option><option>Trésorier</option><option>Secrétaire général</option></select><label>Adresse du trésorier</label><input id="mailTo" type="email" placeholder="tresorier@exemple.fr" oninput="localStorage.setItem('v3mail',this.value)"><p class="muted">L'export .eml prépare un courriel avec les pièces jointes. Il faut l'ouvrir dans une messagerie et cliquer sur Envoyer. Aucun envoi automatique.</p></div></section>
+<section id="closing" class="page"><div class="card"><h2>Clôture annuelle — préparation</h2><p class="warn">Simulation et contrôles préparatoires uniquement. Ne vaut pas clôture comptable réglementaire.</p><label>Exercice</label><input id="closeYear" type="number" min="2000" max="2100" value="2026" oninput="renderClosing()"><div id="closingSummary"></div><label>Créances à la clôture (€)</label><input id="closeReceivables" type="number" step=".01" value="0"><label>Dettes à la clôture (€)</label><input id="closeDebts" type="number" step=".01" value="0"><label>Observations du trésorier</label><textarea id="closeNotes" rows="3"></textarea><button class="primary" onclick="prepareClosing()">Enregistrer la préparation de clôture</button><p class="muted">Une clôture définitive nécessitera le contrôle des comptes, des soldes, des opérations et la validation par les responsables habilités.</p></div></section>
+<section id="publication" class="page"><div class="card"><h2>Dossier annuel de publication</h2><p class="warn">Document préparatoire non certifié : les états simplifiés ci-dessous ne constituent pas à eux seuls des comptes annuels conformes.</p><label>Exercice</label><input id="pubYear" type="number" min="2000" max="2100" value="2026"><label>Date d'approbation par l'instance compétente</label><input id="approvalDate" type="date"><label>Instance ayant approuvé les comptes</label><input id="approvalBody" placeholder="Ex. commission exécutive / assemblée selon statuts"><label>Mode de publication envisagé</label><select id="publicationMode"><option>Site internet de l'organisation</option><option>DREETS</option><option>Autre modalité légale à vérifier</option></select><label>Date de publication (si effectuée)</label><input id="publicationDate" type="date"><label>Référence du procès-verbal d'approbation</label><input id="approvalRef"><button class="primary" onclick="generateAnnual()">Prévisualiser / imprimer le dossier annuel</button><p class="muted">La publication doit être décidée après approbation des comptes. Ne pas joindre les factures individuelles au dossier public.</p></div></section>
 <section id="settings" class="page">
 <div class="card">
 <h2>Sauvegarde du test</h2>
@@ -115,10 +117,10 @@ hr{border:0;border-top:1px solid #ddd;margin:15px 0}
 <nav>
 <button id="nav-home" class="active" onclick="show('home')">Accueil</button>
 <button id="nav-scan" onclick="show('scan')">Scanner</button>
-<button id="nav-bank" onclick="show('bank')">Banque</button>
+<button id="nav-mailScan" onclick="show('mailScan')">Mail scan</button><button id="nav-bank" onclick="show('bank')">Banque</button>
 <button id="nav-match" onclick="show('match')">Rapprocher</button>
 <button id="nav-journal" onclick="show('journal')">Journal</button>
-<button id="nav-notes" onclick="show('notes')">Notes de frais</button><button id="nav-accounts" onclick="show('accounts')">Comptes</button><button id="nav-bureau" onclick="show('bureau')">Bureau</button><button id="nav-settings" onclick="show('settings')">Plus</button>
+<button id="nav-notes" onclick="show('notes')">Notes de frais</button><button id="nav-accounts" onclick="show('accounts')">Comptes</button><button id="nav-bureau" onclick="show('bureau')">Bureau</button><button id="nav-closing" onclick="show('closing')">Clôture</button><button id="nav-publication" onclick="show('publication')">Publication</button><button id="nav-settings" onclick="show('settings')">Plus</button>
 </nav>
 
 <script>
@@ -222,8 +224,24 @@ function reconcile(opId,bid){
  op.reconciled=true;op.bankId=bid;b.reconciled=true;b.opId=opId;save();render();alert("Rapprochement validé. L’écriture est maintenant verrouillée dans ce prototype.")
 }
 
-async function addNLine(){let a=Number(nAmount.value),f=nFile.files[0];if(!nDate.value||!nLabel.value.trim()||a<=0){alert("Date, nature et montant requis");return}if(f&&f.size>1500000){alert("Justificatif trop volumineux pour ce prototype (1,5 Mo)");return}draft.push({date:nDate.value,label:nLabel.value,amount:a,filename:f?.name||"",mime:f?.type||"application/octet-stream",data:f?await file64(f):null});nLabel.value="";nAmount.value="";nFile.value="";renderN()}
-function saveN(){if(!person.value.trim()||!purpose.value.trim()||!draft.length){alert("Demandeur, objet et dépense requis");return}db.notes.push({id:uid("note"),person:person.value,purpose:purpose.value,lines:draft,date:new Date().toISOString().slice(0,10)});try{save()}catch(e){db.notes.pop();alert("Espace de stockage insuffisant");return}draft=[];person.value="";purpose.value="";renderN()}
+async function readNoteReceipt(){
+ const f=nFile.files[0];if(!f){alert("Choisis une photo ou une image de ticket.");return}
+ if(f.type==="application/pdf"||/\.pdf$/i.test(f.name)){noteOcrStatus.textContent="La lecture automatique des PDF n'est pas encore disponible dans ce test. Renseigne les champs manuellement ; le PDF restera joint.";return}
+ if(!f.type.startsWith("image/")){noteOcrStatus.textContent="Format non reconnu. Utilise une photo JPG ou PNG.";return}
+ if(typeof Tesseract==="undefined"){noteOcrStatus.textContent="OCR indisponible : connecte-toi à Internet et recharge l'application.";return}
+ noteOcrStatus.textContent="Lecture du ticket en cours…";
+ try{
+  const result=await Tesseract.recognize(f,"fra",{logger:m=>{if(m.status==="recognizing text")noteOcrStatus.textContent="Lecture : "+Math.round((m.progress||0)*100)+" %"}});
+  const raw=result.data.text||"";
+  const date=parseDate(raw),amount=parseAmount(raw),vendor=guessVendor(raw);
+  if(date)nDate.value=date;
+  if(amount)nAmount.value=amount;
+  if(vendor){nVendor.value=vendor;if(!nLabel.value.trim())nLabel.value=vendor}
+  noteOcrStatus.textContent="Lecture terminée. Vérifie et corrige la date, le fournisseur et le montant TTC avant d'ajouter la dépense.";
+ }catch(e){noteOcrStatus.textContent="Lecture impossible sur cette image. Tu peux saisir les informations manuellement."}
+}
+async function addNLine(){let a=Number(nAmount.value),f=nFile.files[0];if(!nDate.value||!nLabel.value.trim()||a<=0){alert("Date, nature et montant requis");return}if(f&&f.size>1500000){alert("Justificatif trop volumineux pour ce prototype (1,5 Mo)");return}draft.push({date:nDate.value,label:nLabel.value,vendor:nVendor.value.trim(),amount:a,filename:f?.name||"",mime:f?.type||"application/octet-stream",data:f?await file64(f):null});nLabel.value="";nAmount.value="";nVendor.value="";nFile.value="";noteOcrStatus.textContent="";renderN()}
+function saveN(){if(!person.value.trim()||!purpose.value.trim()||!draft.length){alert("Demandeur, objet et dépense requis");return}db.notes.push({id:uid("note"),person:person.value,purpose:purpose.value,lines:draft,date:new Date().toISOString().slice(0,10)});try{save()}catch(e){db.notes.pop();alert("Espace de stockage insuffisant");return}draft=[];person.value="";purpose.value="";renderN();if(confirm("Note enregistrée. Préparer le mail au trésorier avec les justificatifs ?"))emailN(db.notes[db.notes.length-1].id)}
 function totalN(n){return n.lines.reduce((a,l)=>a+Number(l.amount),0)}
 function renderN(){nDraft.innerHTML=draft.map(l=>`<p>${esc(l.label)} : ${euro(l.amount)} ${esc(l.filename)}</p>`).join("")+`<b>Total : ${euro(totalN({lines:draft}))}</b>`;nSaved.innerHTML=db.notes.map(n=>`<div class="match"><b>${esc(n.person)}</b> — ${esc(n.purpose)} — ${euro(totalN(n))}<p><button onclick="printN('${n.id}')">Éditer / PDF</button> <button class="primary" onclick="emailN('${n.id}')">Courriel au trésorier + pièces</button></p></div>`).join("")||"Aucune note"}
 function printN(id){let n=db.notes.find(x=>x.id===id),w=window.open("","_blank");if(!w){alert("Autorise les fenêtres surgissantes");return}let rows=n.lines.map(l=>`<tr><td>${esc(l.date)}</td><td>${esc(l.label)}</td><td>${euro(l.amount)}</td><td>${esc(l.filename)}</td></tr>`).join("");w.document.write(`<html><meta charset="utf-8"><title>Note de frais</title><body style="font:15px Arial;margin:40px"><h1>UL Basse Loire — Note de frais</h1><p>Demandeur : ${esc(n.person)}<br>Objet : ${esc(n.purpose)}<br>Date : ${esc(n.date)}</p><table border="1" cellspacing="0" cellpadding="10"><tr><th>Date</th><th>Dépense</th><th>Montant</th><th>Justificatif</th></tr>${rows}</table><h2>Total : ${euro(totalN(n))}</h2><p>Signature demandeur : __________________</p><p>Visa trésorier : __________________</p><button onclick="print()">Imprimer / Enregistrer en PDF</button></body></html>`);w.document.close()}
@@ -235,7 +253,25 @@ function downloadDoc(id){let o=db.ops.find(x=>x.id===id),d=db.docs.find(x=>x.id=
 function downloadNoteDoc(id,i){let n=db.notes.find(x=>x.id===id),l=n?.lines[i];if(l?.data)downloadData(l.data,l.filename)}
 function exportJournal(){let rows=[["Type","Piece","Date","Libelle","Rubrique","Montant","Statut","Justificatifs"]];db.ops.forEach(o=>{let d=db.docs.find(x=>x.id===o.docId);rows.push(["Écriture",o.piece,o.date,o.label,o.vent,o.amount,o.reconciled?"Rapprochée":"Ouverte",d?.attachment?"Oui":"Non"])});db.notes.forEach(n=>rows.push(["Note en attente","",n.date,n.person+" - "+n.purpose,"Note de frais",totalN(n),"Non comptabilisée",n.lines.filter(l=>l.data).map(l=>l.filename).join(" | ")]));let csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\r\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='Journal_V3_Test.csv';a.click()}
 function printJournal(){let w=window.open('','_blank');if(!w)return alert('Autorise les fenêtres surgissantes');let rows=db.ops.map(o=>`<tr><td>${esc(o.piece)}</td><td>${esc(o.date)}</td><td>${esc(o.label)}</td><td>${euro(o.amount)}</td><td>${db.docs.some(d=>d.id===o.docId&&d.attachment)?'Oui':'Non'}</td></tr>`).join('');w.document.write(`<html><meta charset="utf-8"><title>Journal V3 Test</title><body style="font:14px Arial"><h1>Journal comptable — V3 Test</h1><p>Les justificatifs sont à télécharger séparément depuis l'application.</p><table border="1" cellspacing="0" cellpadding="7"><tr><th>Pièce</th><th>Date</th><th>Libellé</th><th>Montant</th><th>Justificatif</th></tr>${rows}</table><h2>Notes de frais non comptabilisées</h2>${db.notes.map(n=>`<p>${esc(n.person)} — ${esc(n.purpose)} — ${euro(totalN(n))}</p>`).join('')}<button onclick="print()">Imprimer / PDF</button></body></html>`);w.document.close()}
-function render(){renderN();renderA();
+function yearOps(y){return db.ops.filter(o=>String(o.date||"").startsWith(String(y)))}
+function renderClosing(){let y=Number(closeYear.value),ops=yearOps(y),unrec=ops.filter(o=>!o.reconciled);closingSummary.innerHTML=`<p>Écritures : <b>${ops.length}</b> — Non rapprochées : <b>${unrec.length}</b></p><p>Total dépenses enregistrées : <b>${euro(ops.reduce((a,o)=>a+Number(o.amount||0),0))}</b></p><p>Notes de frais en attente : <b>${db.notes.filter(n=>String(n.date||"").startsWith(String(y))).length}</b></p><p>Comptes créés : <b>${db.accounts.length}</b>. Les soldes ne sont pas encore calculés à partir des écritures par compte.</p>`}
+function prepareClosing(){let y=String(closeYear.value);if(!/^20\d{2}$/.test(y))return alert("Exercice invalide");db.closings??={};db.closings[y]={year:y,receivables:Number(closeReceivables.value)||0,debts:Number(closeDebts.value)||0,notes:closeNotes.value,preparedAt:new Date().toISOString(),status:"Préparation uniquement"};save();alert("Préparation enregistrée, sans verrouillage de l'exercice.")}
+function generateAnnual(){let y=String(pubYear.value),ops=yearOps(y),total=ops.reduce((a,o)=>a+Number(o.amount||0),0),unrec=ops.filter(o=>!o.reconciled).length,notes=db.notes.filter(n=>String(n.date||"").startsWith(y)),c=db.closings?.[y],w=window.open("","_blank");if(!w)return alert("Autorise les fenêtres surgissantes");let rows=ops.map(o=>`<tr><td>${esc(o.date)}</td><td>${esc(o.piece)}</td><td>${esc(o.label)}</td><td>${euro(o.amount)}</td><td>${o.reconciled?"Oui":"Non"}</td></tr>`).join("");w.document.write(`<html><meta charset="utf-8"><title>Dossier annuel ${esc(y)}</title><style>body{font:14px Arial;margin:35px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #999;padding:7px}@media print{button{display:none}}</style><h1>UL Basse Loire — Dossier préparatoire ${esc(y)}</h1><p><b>NON CERTIFIÉ — NE PAS PUBLIER TEL QUEL</b></p><h2>Contrôles</h2><p>Écritures de dépenses : ${ops.length} ; dépenses : ${euro(total)} ; non rapprochées : ${unrec} ; notes de frais non comptabilisées : ${notes.length}</p><p>Créances déclarées : ${euro(c?.receivables||0)} ; dettes déclarées : ${euro(c?.debts||0)}</p><p>Les recettes, la ventilation comptable complète, les soldes bancaires justifiés et les autres postes du bilan ne sont pas calculés par ce prototype. Il est impossible de produire ici un bilan ou compte de résultat réglementaire fiable.</p><h2>Journal des dépenses</h2><table><tr><th>Date</th><th>Pièce</th><th>Libellé</th><th>Montant</th><th>Rapprochée</th></tr>${rows}</table><h2>Approbation / publication</h2><p>Instance : ${esc(approvalBody.value||"Non renseignée")}<br>Date approbation : ${esc(approvalDate.value||"Non renseignée")}<br>Référence PV : ${esc(approvalRef.value||"Non renseignée")}<br>Mode envisagé : ${esc(publicationMode.value)}<br>Date publication : ${esc(publicationDate.value||"Non renseignée")}</p><p>À compléter avant publication : bilan, compte de résultat, annexe, décision d'approbation et contrôles de conformité.</p><button onclick="print()">Imprimer / PDF</button></html>`);w.document.close()}
+
+function sendScanMail(){
+ let d=db.docs.find(x=>x.id===scanChoice.value),to=localStorage.getItem("v3mail")||"";
+ if(!d)return alert("Enregistre d'abord une facture scannée.");
+ if(!to){alert("Renseigne l'adresse du trésorier dans Bureau.");show("bureau");return}
+ let boundary="ULV4"+Date.now();
+ let b64=t=>btoa(unescape(encodeURIComponent(t)));
+ let body=`Bonjour,\n\nNouveau scan à contrôler.\nFournisseur : ${d.vendor}\nDate : ${d.date}\nMontant : ${euro(d.amount)}\nRéférence : ${d.ref||""}\n`;
+ let eml=`To: ${to}\r\nSubject: Scan facture UL Basse Loire\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n--${boundary}\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${b64(body)}\r\n`;
+ if(d.attachment){let raw=d.attachment.split(",")[1],mime=d.attachment.match(/^data:([^;]+)/)?.[1]||"image/jpeg";eml+=`--${boundary}\r\nContent-Type: ${mime}; name="facture_scan.jpg"\r\nContent-Disposition: attachment; filename="facture_scan.jpg"\r\nContent-Transfer-Encoding: base64\r\n\r\n${raw.match(/.{1,76}/g).join("\r\n")}\r\n`}
+ eml+=`--${boundary}--\r\n`;
+ let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([eml],{type:"message/rfc822"}));a.download="scan_facture_UL.eml";a.click();
+ alert("Mail préparé au format .eml. Ouvre-le dans une messagerie compatible, vérifie la pièce et clique sur Envoyer. Gmail Android peut ne pas ouvrir ce format.");
+}
+function render(){scanChoice.innerHTML=db.docs.map(d=>`<option value="${d.id}">${esc(d.date)} — ${esc(d.vendor)} — ${euro(d.amount)}</option>`).join("");renderN();renderA();renderClosing();
 
  kDocs.textContent=db.docs.length;kReco.textContent=db.ops.filter(o=>o.reconciled).length;
  bankRows.innerHTML=db.bank.map(b=>`<tr><td>${esc(b.date)}</td><td>${esc(b.label)}</td><td class="n">${euro(b.amount)}</td><td>${b.reconciled?"🔒 Rapproché":"À pointer"}</td></tr>`).join("");
